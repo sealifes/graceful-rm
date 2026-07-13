@@ -62,7 +62,8 @@ graceful-rm restore <ID>
 `status` lists the current user's trash entries, including their sizes and
 original paths. `restore <ID>` restores one entry to its original path without
 overwriting an existing file. `clean` clears the current user's trash
-immediately; run `sudo graceful-rm clean` to clear all users' entries.
+immediately after two confirmations requiring the exact word `yes`; run
+`sudo graceful-rm clean` to clear all users' entries.
 
 The installer does not replace `/bin/rm`, create an alias, or silently add
 `sudo`.

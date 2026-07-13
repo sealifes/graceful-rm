@@ -209,6 +209,28 @@ def show_status() -> int:
 
 
 def clear_trash() -> int:
+    entries = []
+    for owner_dir in trash_owner_dirs():
+        entries.extend(entry for entry in owner_dir.iterdir() if not entry.name.endswith(".json"))
+    if not entries:
+        print("Trash is empty.")
+        return 0
+
+    total_size = sum(entry_size(entry) for entry in entries)
+    print(f"This will permanently delete {len(entries)} trash entr{'y' if len(entries) == 1 else 'ies'} ({format_size(total_size)}).")
+    try:
+        first = input("First confirmation - type 'yes' to continue: ")
+        if first != "yes":
+            print("Clean cancelled.")
+            return 1
+        second = input("Second confirmation - type 'yes' again to continue: ")
+    except (EOFError, KeyboardInterrupt):
+        print("\nClean cancelled.")
+        return 1
+    if second != "yes":
+        print("Clean cancelled.")
+        return 1
+
     failures = 0
     for owner_dir in trash_owner_dirs():
         for entry in owner_dir.iterdir():
