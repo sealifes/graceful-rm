@@ -226,6 +226,68 @@ def clear_trash() -> int:
     return 0
 
 
+def restore_entry(entry_id: str) -> int:
+    matches = []
+    for owner_dir in trash_owner_dirs():
+        entry = owner_dir / entry_id
+        if entry.exists() or entry.is_symlink():
+            matches.append(entry)
+    if not matches:
+        print(f"graceful-rm: trash entry not found: {entry_id}", file=sys.stderr)
+        return 1
+    if len(matches) > 1:
+        print(f"graceful-rm: trash entry ID is ambiguous: {entry_id}", file=sys.stderr)
+        return 1
+
+    entry = matches[0]
+    metadata = read_metadata(entry)
+    original = metadata.get("original_path")
+    if not isinstance(original, str) or not original:
+        print(f"graceful-rm: metadata missing original path for {entry_id}", file=sys.stderr)
+        return 1
+    target = Path(original)
+    if os.path.lexists(target):
+        print(f"graceful-rm: refusing to overwrite existing path: {target}", file=sys.stderr)
+        return 1
+    if not target.parent.is_dir() or target.parent.is_symlink():
+        print(f"graceful-rm: restore parent directory does not exist: {target.parent}", file=sys.stderr)
+        return 1
+
+    metadata_path = entry.with_name(entry.name + ".json")
+    try:
+        os.rename(entry, target)
+    except OSError as exc:
+        if exc.errno != errno.EXDEV:
+            print(f"graceful-rm: cannot restore {entry_id}: {exc}", file=sys.stderr)
+            return 1
+        try:
+            if entry.is_dir():
+                shutil.copytree(entry, target, symlinks=True)
+            else:
+                shutil.copy2(entry, target, follow_symlinks=False)
+            if entry.is_dir():
+                shutil.rmtree(entry)
+            else:
+                entry.unlink()
+        except OSError as copy_exc:
+            try:
+                if target.is_dir():
+                    shutil.rmtree(target)
+                elif os.path.lexists(target):
+                    target.unlink()
+            except OSError:
+                pass
+            print(f"graceful-rm: restore failed; trash entry was kept: {copy_exc}", file=sys.stderr)
+            return 1
+    try:
+        metadata_path.unlink()
+    except OSError as exc:
+        print(f"restored {target} (warning: metadata cleanup failed: {exc})")
+        return 0
+    print(f"restored {target}")
+    return 0
+
+
 def install_hooks(agent: str, global_claude: bool) -> int:
     if not HOOK_INSTALLER.is_file():
         print("graceful-rm: hook installer is not installed; rerun install.sh", file=sys.stderr)
@@ -242,7 +304,8 @@ def main() -> int:
         epilog=(
             "Commands:\n"
             "  graceful-rm status  list trash entries and file sizes\n"
-            "  graceful-rm clean   clear the current user's trash"
+            "  graceful-rm clean   clear the current user's trash\n"
+            "  graceful-rm restore ID  restore one trash entry"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -268,6 +331,8 @@ def main() -> int:
         return show_status()
     if args.paths == ["clean"]:
         return clear_trash()
+    if len(args.paths) == 2 and args.paths[0] == "restore":
+        return restore_entry(args.paths[1])
     if args.cleanup:
         return cleanup()
     if not args.paths:
