@@ -200,9 +200,11 @@ def show_status() -> int:
     if not rows:
         print("Trash is empty.")
         return 0
-    print(f"{'ID':36}  {'SIZE':>10}  {'DELETED AT':19}  ORIGINAL PATH")
+    id_width = max(len("ID"), *(len(row[0]) for row in rows))
+    size_width = max(len("SIZE"), *(len(row[1]) for row in rows))
+    print(f"{'ID':<{id_width}}  {'SIZE':>{size_width}}  {'DELETED AT':19}  ORIGINAL PATH")
     for name, size, deleted, original in rows:
-        print(f"{name:36}  {size:>10}  {deleted:19}  {original}")
+        print(f"{name:<{id_width}}  {size:>{size_width}}  {deleted:19}  {original}")
     return 0
 
 
@@ -235,7 +237,15 @@ def install_hooks(agent: str, global_claude: bool) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="graceful-rm")
+    parser = argparse.ArgumentParser(
+        prog="graceful-rm",
+        epilog=(
+            "Commands:\n"
+            "  graceful-rm status  list trash entries and file sizes\n"
+            "  graceful-rm clean   clear the current user's trash"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--cleanup", action="store_true")
     parser.add_argument("--codex", action="store_true", help="install the Codex PreToolUse hook")
@@ -247,7 +257,7 @@ def main() -> int:
     parser.add_argument("-f", "--force", action="store_true", help="accepted for rm compatibility")
     parser.add_argument("-i", "--interactive", action="store_true")
     parser.add_argument("-v", "--verbose", action="store_true")
-    parser.add_argument("paths", nargs="*")
+    parser.add_argument("paths", nargs="*", metavar="PATH")
     args = parser.parse_args()
     hook_flags = [name for name in ("codex", "claude", "antigravity", "all") if getattr(args, name)]
     if hook_flags:
