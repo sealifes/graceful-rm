@@ -6,7 +6,7 @@ hook_agent=""
 case " ${*:-} " in
   *" --codex "*) hook_agent=codex ;;
   *" --claude "*) hook_agent=claude ;;
-  *" --antigravity "*) hook_agent=antigravity ;;
+  *" --agy "*|*" --antigravity "*) hook_agent=antigravity ;;
   *" --all "*) hook_agent=all ;;
 esac
 
