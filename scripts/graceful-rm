@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+"""Move safe deletion targets into the graceful-rm trash."""
+
+import argparse
+import json
+import os
+import shutil
+import sys
+import time
+import uuid
+from pathlib import Path
+
+TRASH_ROOT = Path(os.environ.get("GRACEFUL_RM_TRASH", "/var/lib/graceful-rm/trash"))
+PROTECTED_TREES = {
+    "/", "/bin", "/boot", "/dev", "/etc", "/lib", "/lib64", "/opt",
+    "/proc", "/root", "/run", "/sbin", "/srv", "/sys", "/usr", "/var",
+}
+
+
+def reject_reason(path: Path) -> str | None:
+    if str(path) in {"", ".", ".."}:
+        return "empty, current-directory, and parent-directory targets are blocked"
+    try:
+        if path.is_symlink():
+            return "symbolic links are blocked; remove the link explicitly after inspection"
+        resolved = path.resolve(strict=True)
+    except FileNotFoundError:
+        return "target does not exist"
+    if resolved in {TRASH_ROOT, TRASH_ROOT.parent} or TRASH_ROOT in resolved.parents:
+        return "the graceful-rm trash is protected"
+    if any(
+        resolved == root or (root != Path("/") and root in resolved.parents)
+        for root in map(Path, PROTECTED_TREES)
+    ):
+        return f"protected system path: {resolved}"
+    try:
+        if resolved.is_mount():
+            return f"mount points are protected: {resolved}"
+    except OSError as exc:
+        return f"cannot inspect mount status: {exc}"
+    return None
+
+
+def move_one(raw: str, dry_run: bool) -> int:
+    source = Path(raw)
+    reason = reject_reason(source)
+    if reason:
+        print(f"graceful-rm: refusing {raw}: {reason}", file=sys.stderr)
+        return 1
+    source = source.resolve(strict=True)
+    destination = TRASH_ROOT / str(os.getuid()) / f"{int(time.time())}-{uuid.uuid4().hex}"
+    if dry_run:
+        print(f"would move {source} -> {destination}")
+        return 0
+    destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        os.rename(source, destination)
+    except OSError as exc:
+        if exc.errno == 18:
+            print("graceful-rm: refusing cross-filesystem move; source was not changed", file=sys.stderr)
+        else:
+            print(f"graceful-rm: cannot move {raw}: {exc}", file=sys.stderr)
+        return 1
+    metadata = {
+        "original_path": str(source),
+        "deleted_at": int(time.time()),
+        "uid": os.getuid(),
+        "gid": os.getgid(),
+    }
+    try:
+        destination.with_name(destination.name + ".json").write_text(json.dumps(metadata) + "\n")
+    except OSError as exc:
+        print(f"graceful-rm: moved {source}, but metadata write failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"moved {source} -> {destination}")
+    return 0
+
+
+def cleanup() -> int:
+    cutoff = time.time() - 3 * 24 * 60 * 60
+    if not TRASH_ROOT.is_dir():
+        return 0
+    for owner_dir in TRASH_ROOT.iterdir():
+        if not owner_dir.is_dir() or owner_dir.is_symlink():
+            continue
+        for entry in owner_dir.iterdir():
+            try:
+                if entry.is_symlink() or entry.stat().st_mtime >= cutoff:
+                    continue
+                if entry.is_dir():
+                    shutil.rmtree(entry)
+                else:
+                    entry.unlink()
+            except OSError as exc:
+                print(f"graceful-rm: cleanup failed for {entry}: {exc}", file=sys.stderr)
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(prog="graceful-rm")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--cleanup", action="store_true")
+    parser.add_argument("-r", "-R", "--recursive", action="store_true", help="accepted for rm compatibility")
+    parser.add_argument("-f", "--force", action="store_true", help="accepted for rm compatibility")
+    parser.add_argument("-i", "--interactive", action="store_true")
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("paths", nargs="*")
+    args = parser.parse_args()
+    if args.cleanup:
+        return cleanup()
+    if not args.paths:
+        parser.error("at least one path is required")
+    cleanup()
+    return max(move_one(path, args.dry_run) for path in args.paths)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

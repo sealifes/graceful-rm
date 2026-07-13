@@ -1,0 +1,9 @@
+[Unit]
+Description=Run graceful-rm cleanup every three days
+
+[Timer]
+OnUnitActiveSec=3d
+Unit=graceful-rm-cleanup.service
+
+[Install]
+WantedBy=timers.target

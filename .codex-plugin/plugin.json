@@ -1,0 +1,22 @@
+{
+  "name": "graceful-rm",
+  "version": "0.1.0",
+  "description": "Installs and documents a safer Linux rm replacement that moves files to a time-limited trash.",
+  "author": {
+    "name": "Local developer"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Graceful RM",
+    "shortDescription": "Install a safer rm replacement.",
+    "longDescription": "Graceful RM installs a Linux command that rejects dangerous targets, moves accepted paths to /var/lib/graceful-rm/trash, and expires them after three days.",
+    "developerName": "Local developer",
+    "category": "Productivity",
+    "capabilities": ["Write"],
+    "defaultPrompt": [
+      "Install graceful-rm on this Linux system.",
+      "Check the graceful-rm cleanup timer.",
+      "Explain why this path is blocked by graceful-rm."
+    ]
+  }
+}

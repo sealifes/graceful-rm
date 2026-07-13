@@ -1,0 +1,6 @@
+[Unit]
+Description=Delete expired graceful-rm trash entries
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/graceful-rm --cleanup

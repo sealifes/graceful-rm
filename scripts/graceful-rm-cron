@@ -1,0 +1,2 @@
+# graceful-rm expiration check; graceful-rm deletes entries older than 72 hours.
+0 3 * * * root /usr/local/bin/graceful-rm --cleanup >/dev/null 2>&1
