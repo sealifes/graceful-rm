@@ -6,12 +6,14 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
 import sys
 import time
 import uuid
 from pathlib import Path
 
 TRASH_ROOT = Path(os.environ.get("GRACEFUL_RM_TRASH", "/var/lib/graceful-rm/trash"))
+HOOK_INSTALLER = Path("/usr/local/share/graceful-rm/scripts/install-hooks.sh")
 PROTECTED_TREES = {
     "/", "/bin", "/boot", "/dev", "/etc", "/lib", "/lib64", "/opt",
     "/proc", "/root", "/run", "/sbin", "/srv", "/sys", "/usr", "/var",
@@ -97,16 +99,36 @@ def cleanup() -> int:
     return 0
 
 
+def install_hooks(agent: str, global_claude: bool) -> int:
+    if not HOOK_INSTALLER.is_file():
+        print("graceful-rm: hook installer is not installed; rerun install.sh", file=sys.stderr)
+        return 1
+    command = [str(HOOK_INSTALLER), "--agent", agent]
+    if global_claude:
+        command.append("--global")
+    return subprocess.run(command, check=False).returncode
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="graceful-rm")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--cleanup", action="store_true")
+    parser.add_argument("--codex", action="store_true", help="install the Codex PreToolUse hook")
+    parser.add_argument("--claude", action="store_true", help="install the Claude Code PreToolUse hook")
+    parser.add_argument("--agy", "--antigravity", dest="antigravity", action="store_true", help="install the Antigravity PreToolUse hook")
+    parser.add_argument("--all", action="store_true", help="install all supported PreToolUse hooks")
+    parser.add_argument("--global", dest="global_claude", action="store_true", help="use global Claude Code settings")
     parser.add_argument("-r", "-R", "--recursive", action="store_true", help="accepted for rm compatibility")
     parser.add_argument("-f", "--force", action="store_true", help="accepted for rm compatibility")
     parser.add_argument("-i", "--interactive", action="store_true")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("paths", nargs="*")
     args = parser.parse_args()
+    hook_flags = [name for name in ("codex", "claude", "antigravity", "all") if getattr(args, name)]
+    if hook_flags:
+        if len(hook_flags) != 1 or args.paths or args.global_claude and hook_flags[0] != "claude":
+            parser.error("hook options cannot be combined with paths; --global is only valid with --claude")
+        return install_hooks(hook_flags[0], args.global_claude)
     if args.cleanup:
         return cleanup()
     if not args.paths:

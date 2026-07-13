@@ -7,6 +7,8 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 install -D -m 0755 "$(dirname "$0")/graceful-rm" /usr/local/bin/graceful-rm
+install -D -m 0755 "$(dirname "$0")/../hooks/pre-tool-use.py" /usr/local/share/graceful-rm/hooks/pre-tool-use.py
+install -D -m 0755 "$(dirname "$0")/install-hooks.sh" /usr/local/share/graceful-rm/scripts/install-hooks.sh
 install -d -o root -g root -m 0755 /var/lib/graceful-rm
 install -d -o root -g root -m 01777 /var/lib/graceful-rm/trash
 
