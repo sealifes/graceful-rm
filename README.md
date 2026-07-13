@@ -13,7 +13,7 @@ when neither scheduler is available.
 Clone this repository and run the installer as root:
 
 ```bash
-git clone https://github.com/<owner>/graceful-rm.git
+git clone https://github.com/sealifes/graceful-rm.git
 cd graceful-rm
 sudo ./scripts/install.sh
 ```
