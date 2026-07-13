@@ -18,6 +18,14 @@ Install the system-wide command with one command:
 curl -fsSL https://raw.githubusercontent.com/sealifes/graceful-rm/main/install.sh | sudo bash
 ```
 
+Install all supported PreToolUse hooks in the current Git project:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sealifes/graceful-rm/main/install-hooks.sh | bash -s -- --agent all
+```
+
+For Claude Code global settings, use `--agent claude --global` instead.
+
 The remote installer downloads the `main` archive before running, so piping it
 does not depend on the shell's stdin being a local file. Set `GRACEFUL_RM_REF`
 to install another branch or release ref explicitly.
