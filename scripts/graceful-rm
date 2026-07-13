@@ -141,6 +141,89 @@ def cleanup() -> int:
     return 0
 
 
+def trash_owner_dirs() -> list[Path]:
+    if not TRASH_ROOT.is_dir():
+        return []
+    if os.getuid() == 0:
+        return [entry for entry in TRASH_ROOT.iterdir() if entry.is_dir() and not entry.is_symlink()]
+    owner_dir = TRASH_ROOT / str(os.getuid())
+    return [owner_dir] if owner_dir.is_dir() and not owner_dir.is_symlink() else []
+
+
+def entry_size(path: Path) -> int:
+    if not path.is_dir() or path.is_symlink():
+        return path.lstat().st_size
+    total = 0
+    for root, directories, files in os.walk(path, followlinks=False):
+        for name in directories + files:
+            child = Path(root) / name
+            try:
+                total += child.lstat().st_size if child.is_symlink() else child.stat().st_size
+            except OSError:
+                continue
+    return total
+
+
+def format_size(size: int) -> str:
+    value = float(size)
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if value < 1024 or unit == "TiB":
+            return f"{value:.1f} {unit}" if unit != "B" else f"{size} B"
+        value /= 1024
+    return f"{size} B"
+
+
+def read_metadata(entry: Path) -> dict[str, object]:
+    metadata_path = entry.with_name(entry.name + ".json")
+    try:
+        data = json.loads(metadata_path.read_text())
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def show_status() -> int:
+    rows: list[tuple[str, str, str, str]] = []
+    for owner_dir in sorted(trash_owner_dirs()):
+        for entry in sorted(owner_dir.iterdir()):
+            if entry.name.endswith(".json"):
+                continue
+            try:
+                metadata = read_metadata(entry)
+                deleted_at = metadata.get("deleted_at")
+                deleted = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(deleted_at)) if isinstance(deleted_at, (int, float)) else "unknown"
+                original = str(metadata.get("original_path", "unknown"))
+                rows.append((entry.name, format_size(entry_size(entry)), deleted, original))
+            except OSError as exc:
+                print(f"graceful-rm: cannot inspect {entry}: {exc}", file=sys.stderr)
+                return 1
+    if not rows:
+        print("Trash is empty.")
+        return 0
+    print(f"{'ID':36}  {'SIZE':>10}  {'DELETED AT':19}  ORIGINAL PATH")
+    for name, size, deleted, original in rows:
+        print(f"{name:36}  {size:>10}  {deleted:19}  {original}")
+    return 0
+
+
+def clear_trash() -> int:
+    failures = 0
+    for owner_dir in trash_owner_dirs():
+        for entry in owner_dir.iterdir():
+            try:
+                if entry.is_dir() and not entry.is_symlink():
+                    shutil.rmtree(entry)
+                else:
+                    entry.unlink()
+            except OSError as exc:
+                failures += 1
+                print(f"graceful-rm: clean failed for {entry}: {exc}", file=sys.stderr)
+    if failures:
+        return 1
+    print("Trash cleared.")
+    return 0
+
+
 def install_hooks(agent: str, global_claude: bool) -> int:
     if not HOOK_INSTALLER.is_file():
         print("graceful-rm: hook installer is not installed; rerun install.sh", file=sys.stderr)
@@ -171,6 +254,10 @@ def main() -> int:
         if len(hook_flags) != 1 or args.paths or args.global_claude and hook_flags[0] != "claude":
             parser.error("hook options cannot be combined with paths; --global is only valid with --claude")
         return install_hooks(hook_flags[0], args.global_claude)
+    if args.paths == ["status"]:
+        return show_status()
+    if args.paths == ["clean"]:
+        return clear_trash()
     if args.cleanup:
         return cleanup()
     if not args.paths:

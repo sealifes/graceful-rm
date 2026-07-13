@@ -54,7 +54,13 @@ The command is then available system-wide:
 ```bash
 graceful-rm --dry-run -- ./path/to/file
 graceful-rm -- ./path/to/file
+graceful-rm status
+graceful-rm clean
 ```
+
+`status` lists the current user's trash entries, including their sizes and
+original paths. `clean` clears the current user's trash immediately; run
+`sudo graceful-rm clean` to clear all users' entries.
 
 The installer does not replace `/bin/rm`, create an alias, or silently add
 `sudo`.
@@ -62,9 +68,10 @@ The installer does not replace `/bin/rm`, create an alias, or silently add
 ## Safety rules
 
 Blocked targets include `/` itself, system trees such as `/etc`, `/usr`, and
-`/var`, symbolic links, mount points, the graceful-rm trash, missing paths, and
-cross-filesystem moves. User data under `/home` and ordinary project paths are
-allowed. Review a command with `--dry-run` first.
+`/var`, symbolic links, mount points, the graceful-rm trash, and missing paths.
+User data under `/home` and ordinary project paths are allowed. Cross-filesystem
+targets are copied into the trash before their sources are removed. Review a
+command with `--dry-run` first.
 
 ## Agent hooks
 
