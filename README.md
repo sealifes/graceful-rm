@@ -10,6 +10,20 @@ when neither scheduler is available.
 
 ## Install
 
+### Quick install
+
+Install the system-wide command with one command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sealifes/graceful-rm/main/install.sh | sudo bash
+```
+
+The remote installer downloads the `main` archive before running, so piping it
+does not depend on the shell's stdin being a local file. Set `GRACEFUL_RM_REF`
+to install another branch or release ref explicitly.
+
+### Install from a clone
+
 Clone this repository and run the installer as root:
 
 ```bash
