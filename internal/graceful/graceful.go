@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"syscall"
@@ -35,10 +34,8 @@ func TrashRoot() string {
 	if v := os.Getenv("GRACEFUL_RM_TRASH"); v != "" {
 		return v
 	}
-	if runtime.GOOS == "windows" {
-		return filepath.Join(os.Getenv("ProgramData"), "graceful-rm", "trash")
-	}
-	return "/var/lib/graceful-rm/trash"
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".graceful-rm", "trash")
 }
 
 func reject(path string) (string, string, error) {
@@ -205,15 +202,10 @@ func removePath(path string) error { return os.RemoveAll(path) }
 
 func Cleanup() int {
 	cutoff := time.Now().Add(-retention)
-	root := TrashRoot()
-	entries, _ := os.ReadDir(root)
-	for _, owner := range entries {
-		if !owner.IsDir() {
-			continue
-		}
-		children, _ := os.ReadDir(filepath.Join(root, owner.Name()))
+	for _, ownerDir := range ownerDirs() {
+		children, _ := os.ReadDir(ownerDir)
 		for _, child := range children {
-			p := filepath.Join(root, owner.Name(), child.Name())
+			p := filepath.Join(ownerDir, child.Name())
 			info, err := os.Lstat(p)
 			if err == nil && !info.ModTime().After(cutoff) {
 				_ = removePath(p)
@@ -291,6 +283,7 @@ func list() []entry {
 }
 func Status() int {
 	rows := list()
+	fmt.Println("Trash box:", TrashRoot())
 	if len(rows) == 0 {
 		fmt.Println("Trash is empty.")
 		return 0

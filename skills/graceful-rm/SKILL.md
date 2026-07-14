@@ -9,11 +9,11 @@ Use this plugin to install and operate the Go-based `graceful-rm` command on Lin
 
 ## Safety contract
 
-- `graceful-rm` moves accepted paths to `/var/lib/graceful-rm/trash`.
+- `graceful-rm` moves accepted paths to `~/.graceful-rm/trash`.
 - It rejects protected system paths, symbolic links, mount points, the trash itself, and missing paths.
 - Cross-filesystem targets are copied into the trash and the source is removed only after identity checks.
 - The session-start hook is read-only and must never use `sudo` automatically.
-- Installation requires explicit root authorization because it writes `/usr/local/bin`, `/var/lib`, and the host scheduler configuration.
+- Installation requires explicit root authorization because it writes `/usr/local/bin` and the host scheduler configuration.
 
 ## Install
 
@@ -29,8 +29,18 @@ Then verify:
 
 ```bash
 graceful-rm --dry-run -- ./path
+graceful-rm --alias
 systemctl status graceful-rm-cleanup.timer  # systemd hosts only
 ```
+
+`--alias` detects the user's Bash or Zsh from `$SHELL` and adds a guarded
+`rm` alias to the matching rc file. It does not overwrite an existing alias or
+function; source the reported rc file after installation.
+
+Use `graceful-rm --uninstall-hook` to remove only graceful-rm hook entries,
+`graceful-rm --unalias` to remove only the managed shell alias, or
+`graceful-rm --uninstall` for both. Hook configuration files are backed up
+before managed entries are removed.
 
 Never replace `/bin/rm` or create an alias automatically. Users can opt into an alias after testing.
 

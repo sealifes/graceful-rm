@@ -30,9 +30,6 @@ fi
 install -D -m 0755 "$graceful_rm_bin" /usr/local/bin/graceful-rm
 install -D -m 0755 "$hook_bin" /usr/local/bin/graceful-rm-hook
 install -D -m 0755 "$(dirname "$0")/install-hooks.sh" /usr/local/share/graceful-rm/scripts/install-hooks.sh
-install -d -o root -g root -m 0755 /var/lib/graceful-rm
-install -d -o root -g root -m 01777 /var/lib/graceful-rm/trash
-
 if [[ "$(ps -p 1 -o comm= 2>/dev/null || true)" == "systemd" ]] && command -v systemctl >/dev/null 2>&1; then
   install -D -m 0644 "$(dirname "$0")/graceful-rm-cleanup.service" /etc/systemd/system/graceful-rm-cleanup.service
   install -D -m 0644 "$(dirname "$0")/graceful-rm-cleanup.timer" /etc/systemd/system/graceful-rm-cleanup.timer

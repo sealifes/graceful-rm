@@ -27,8 +27,8 @@ func rewrite(command string) string {
 }
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "--install" {
-		if install(os.Args[2:]) != nil {
+	if len(os.Args) > 1 && (os.Args[1] == "--install" || os.Args[1] == "--uninstall") {
+		if configure(os.Args[1] == "--uninstall", os.Args[2:]) != nil {
 			os.Exit(1)
 		}
 		return
@@ -49,7 +49,7 @@ func main() {
 	antigravity(payload)
 }
 
-func install(args []string) error {
+func configure(uninstall bool, args []string) error {
 	agent, global := "all", false
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -96,12 +96,76 @@ func install(args []string) error {
 		targets = append(targets, target{filepath.Join(project, ".agents", "hooks.json"), "antigravity"})
 	}
 	for _, t := range targets {
-		if err := installTarget(t.path, t.kind); err != nil {
+		var err error
+		if uninstall {
+			err = uninstallTarget(t.path, t.kind)
+		} else {
+			err = installTarget(t.path, t.kind)
+		}
+		if err != nil {
 			return err
 		}
-		fmt.Println("installed", t.kind, "hook:", t.path)
+		if uninstall {
+			fmt.Println("uninstalled", t.kind, "hook:", t.path)
+		} else {
+			fmt.Println("installed", t.kind, "hook:", t.path)
+		}
 	}
 	return nil
+}
+
+func uninstallTarget(path, kind string) error {
+	b, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	data := map[string]any{}
+	if err := json.Unmarshal(b, &data); err != nil {
+		return fmt.Errorf("parse %s: %w", path, err)
+	}
+	var rootKey string
+	if kind == "antigravity" {
+		rootKey = "graceful-rm"
+	} else {
+		rootKey = "hooks"
+	}
+	root, ok := data[rootKey].(map[string]any)
+	if !ok {
+		return nil
+	}
+	events, ok := root["PreToolUse"].([]any)
+	if !ok {
+		return nil
+	}
+	kept := events[:0]
+	removed := false
+	for _, event := range events {
+		if hasHook([]any{event}) {
+			removed = true
+			continue
+		}
+		kept = append(kept, event)
+	}
+	if !removed {
+		return nil
+	}
+	if len(kept) == 0 {
+		delete(root, "PreToolUse")
+	} else {
+		root["PreToolUse"] = kept
+	}
+	if len(root) == 0 {
+		delete(data, rootKey)
+	}
+	backup := path + ".backup-" + time.Now().Format("20060102150405")
+	if err := os.WriteFile(backup, b, 0600); err != nil {
+		return err
+	}
+	out, _ := json.MarshalIndent(data, "", "  ")
+	return os.WriteFile(path, append(out, '\n'), 0644)
 }
 
 func projectRoot() (string, error) {

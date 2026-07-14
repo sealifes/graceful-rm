@@ -37,6 +37,9 @@ func run(args []string) int {
 		fmt.Fprintln(fs.Output(), "  graceful-rm status       list trash entries and file sizes")
 		fmt.Fprintln(fs.Output(), "  graceful-rm clean        clear the current user's trash (two confirmations)")
 		fmt.Fprintln(fs.Output(), "  graceful-rm restore ID   restore one trash entry")
+		fmt.Fprintln(fs.Output(), "  graceful-rm --alias      install an rm alias in bashrc or zshrc")
+		fmt.Fprintln(fs.Output(), "  graceful-rm --unalias    remove the managed rm alias")
+		fmt.Fprintln(fs.Output(), "  graceful-rm --uninstall  remove hooks and the managed alias")
 	}
 	dryRun := fs.Bool("dry-run", false, "show moves without changing files")
 	cleanup := fs.Bool("cleanup", false, "remove trash entries older than three days")
@@ -45,6 +48,10 @@ func run(args []string) int {
 	agy := fs.Bool("agy", false, "install the Antigravity PreToolUse hook")
 	antigravity := fs.Bool("antigravity", false, "alias for --agy")
 	all := fs.Bool("all", false, "install all supported PreToolUse hooks")
+	alias := fs.Bool("alias", false, "install rm alias in bashrc or zshrc")
+	unalias := fs.Bool("unalias", false, "remove the managed rm alias")
+	uninstall := fs.Bool("uninstall", false, "remove all graceful-rm hooks and the managed alias")
+	uninstallHook := fs.Bool("uninstall-hook", false, "remove all graceful-rm hooks")
 	global := fs.Bool("global", false, "use global Claude Code settings")
 	fs.Bool("r", false, "accepted for rm compatibility")
 	fs.Bool("R", false, "accepted for rm compatibility")
@@ -64,8 +71,8 @@ func run(args []string) int {
 			hookCount++
 		}
 	}
-	if hookCount > 0 {
-		if hookCount != 1 || len(fs.Args()) > 0 || (*global && !*claude) {
+	if hookCount > 0 || *uninstallHook {
+		if *alias || *unalias || *uninstall || len(fs.Args()) > 0 || (*global && !*claude) {
 			fmt.Fprintln(os.Stderr, "graceful-rm: hook options cannot be combined with paths; --global is only valid with --claude")
 			return 2
 		}
@@ -80,6 +87,9 @@ func run(args []string) int {
 			agent = "antigravity"
 		}
 		cmdArgs := []string{"--agent", agent}
+		if *uninstallHook {
+			cmdArgs = append([]string{"--uninstall"}, cmdArgs...)
+		}
 		if *global {
 			cmdArgs = append(cmdArgs, "--global")
 		}
@@ -93,6 +103,27 @@ func run(args []string) int {
 			return 1
 		}
 		return 0
+	}
+	if *alias || *unalias || *uninstall {
+		if len(fs.Args()) > 0 || *global || *alias && (*unalias || *uninstall) || *unalias && *uninstall {
+			fmt.Fprintln(os.Stderr, "graceful-rm: alias options cannot be combined with paths, --global, or each other")
+			return 2
+		}
+		if *alias {
+			return graceful.InstallAlias()
+		}
+		if *unalias {
+			return graceful.UninstallAlias()
+		}
+		cmd := exec.Command("/usr/local/share/graceful-rm/scripts/install-hooks.sh", "--uninstall", "--agent", "all")
+		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+		if err := cmd.Run(); err != nil {
+			if exit, ok := err.(*exec.ExitError); ok {
+				return exit.ExitCode()
+			}
+			return 1
+		}
+		return graceful.UninstallAlias()
 	}
 	if *cleanup {
 		return graceful.Cleanup()

@@ -2,7 +2,7 @@
 
 `graceful-rm` is a safer Linux `rm` replacement implemented as a Go binary. It rejects high-risk system
 targets, then moves accepted files and directories to
-`/var/lib/graceful-rm/trash` instead of deleting them immediately.
+`~/.graceful-rm/trash` instead of deleting them immediately.
 
 Trash entries expire after 72 hours. The installer uses a systemd timer on a
 systemd host, `/etc/cron.d` in containers with cron, and command-time cleanup
@@ -33,7 +33,24 @@ graceful-rm --codex
 graceful-rm --claude --global
 graceful-rm --agy
 graceful-rm --all
+graceful-rm --alias
+graceful-rm --uninstall-hook
+graceful-rm --unalias
+graceful-rm --uninstall
 ```
+
+`--alias` detects `$SHELL` and adds `alias rm='graceful-rm'` to `~/.bashrc` or
+`~/.zshrc`. It does not modify an existing `rm` alias/function; source the
+reported rc file, or open a new shell, after installation. Hook installation
+and alias installation are independent options.
+
+Uninstall options are also safe and selective:
+
+- `--uninstall-hook` removes graceful-rm hook entries from the current project while preserving other hooks.
+- `--unalias` removes only the managed alias block from the detected rc file.
+- `--uninstall` performs both operations.
+
+Existing configuration files are backed up before hook removal.
 
 The remote installer downloads the `main` archive before running, so piping it
 does not depend on the shell's stdin being a local file. Set `GRACEFUL_RM_REF`
