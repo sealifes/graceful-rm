@@ -5,12 +5,13 @@ description: Install, inspect, and use the safer system-wide graceful-rm command
 
 # Graceful RM
 
-Use this plugin to install and operate `graceful-rm` on Linux.
+Use this plugin to install and operate the Go-based `graceful-rm` command on Linux or Windows.
 
 ## Safety contract
 
 - `graceful-rm` moves accepted paths to `/var/lib/graceful-rm/trash`.
-- It rejects protected system paths, symbolic links, mount points, the trash itself, missing paths, and cross-filesystem moves.
+- It rejects protected system paths, symbolic links, mount points, the trash itself, and missing paths.
+- Cross-filesystem targets are copied into the trash and the source is removed only after identity checks.
 - The session-start hook is read-only and must never use `sudo` automatically.
 - Installation requires explicit root authorization because it writes `/usr/local/bin`, `/var/lib`, and the host scheduler configuration.
 
@@ -35,7 +36,7 @@ Never replace `/bin/rm` or create an alias automatically. Users can opt into an 
 
 ## Pre-tool integration
 
-The intended agent integration is a `PreToolUse` hook. `hooks/pre-tool-use.py` reads the host hook JSON and rewrites shell calls such as `rm -rf build` to `graceful-rm -rf build`. It is conservative: it does not rewrite text such as `echo rm`, and it never adds `sudo`.
+The intended agent integration is a `PreToolUse` hook. The Go `graceful-rm-hook` binary reads host hook JSON and rewrites shell calls such as `rm -rf build` to `graceful-rm -rf build`. It is conservative: it does not rewrite text such as `echo rm`, and it never adds `sudo`.
 
 Codex discovers the bundled `hooks/hooks.json` automatically after the plugin is enabled; review and trust it with `/hooks`. Codex supports `updatedInput` with `permissionDecision: "allow"` for Bash hooks. Claude Code supports the equivalent `updatedInput`; copy `hooks/claude-code-settings.json` into the appropriate settings file and replace its placeholder path.
 

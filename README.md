@@ -1,6 +1,6 @@
 # graceful-rm
 
-`graceful-rm` is a safer Linux `rm` replacement. It rejects high-risk system
+`graceful-rm` is a safer Linux `rm` replacement implemented as a Go binary. It rejects high-risk system
 targets, then moves accepted files and directories to
 `/var/lib/graceful-rm/trash` instead of deleting them immediately.
 
@@ -68,6 +68,9 @@ immediately after two confirmations requiring the exact word `yes`; run
 The installer does not replace `/bin/rm`, create an alias, or silently add
 `sudo`.
 
+The source installer builds `graceful-rm` and `graceful-rm-hook` with Go and
+installs both as static system commands. Python and Node.js are not required.
+
 ## Safety rules
 
 Blocked targets include `/` itself, system trees such as `/etc`, `/usr`, and
@@ -91,7 +94,8 @@ and replace `${PLUGIN_ROOT}` with this repository's absolute path.
 ## Development checks
 
 ```bash
-python3 -m py_compile scripts/graceful-rm hooks/pre-tool-use.py
+go test ./...
+go vet ./...
 bash -n scripts/install.sh
-python3 scripts/graceful-rm --dry-run -- README.md
+go run ./cmd/graceful-rm --dry-run -- README.md
 ```

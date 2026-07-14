@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 /absolute/path/to/graceful-rm/hooks/pre-tool-use.py",
+            "command": "graceful-rm-hook",
             "timeout": 10
           }
         ]

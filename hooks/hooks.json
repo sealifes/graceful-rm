@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${PLUGIN_ROOT}/hooks/pre-tool-use.py",
+            "command": "graceful-rm-hook",
             "timeout": 10,
             "statusMessage": "Rewriting rm to graceful-rm"
           }

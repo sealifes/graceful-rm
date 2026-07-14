@@ -36,6 +36,23 @@ if [[ -z "$source_dir" || ! -f "$source_dir/scripts/install.sh" ]]; then
   exit 1
 fi
 
+if ! command -v go >/dev/null 2>&1 && [[ ! -x "$source_dir/bin/graceful-rm" ]]; then
+  arch="$(uname -m)"
+  case "$arch" in
+    x86_64|amd64) release_arch=amd64 ;;
+    aarch64|arm64) release_arch=arm64 ;;
+    *) echo "install.sh: unsupported architecture without Go: $arch" >&2; exit 1 ;;
+  esac
+  release_base="${GRACEFUL_RM_RELEASE_URL:-https://github.com/sealifes/graceful-rm/releases/latest/download}"
+  mkdir -p "$source_dir/bin"
+  download() {
+    if command -v curl >/dev/null 2>&1; then curl -fsSL "$1" -o "$2"; else wget -qO "$2" "$1"; fi
+  }
+  download "$release_base/graceful-rm-linux-$release_arch" "$source_dir/bin/graceful-rm"
+  download "$release_base/graceful-rm-hook-linux-$release_arch" "$source_dir/bin/graceful-rm-hook"
+  chmod 0755 "$source_dir/bin/graceful-rm" "$source_dir/bin/graceful-rm-hook"
+fi
+
 if [[ "${EUID}" -eq 0 ]]; then
   "$source_dir/scripts/install.sh"
 else
