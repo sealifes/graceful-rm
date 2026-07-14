@@ -52,9 +52,9 @@ Uninstall options are also safe and selective:
 
 Existing configuration files are backed up before hook removal.
 
-The remote installer downloads the `main` archive before running, so piping it
-does not depend on the shell's stdin being a local file. Set `GRACEFUL_RM_REF`
-to install another branch or release ref explicitly.
+The remote installer downloads only the platform-specific `graceful-rm` release
+binary. It downloads the separate hook binary only when a hook option is passed
+to the installer. Set `GRACEFUL_RM_RELEASE_URL` to use another release mirror.
 
 ### Install from a clone
 
@@ -86,7 +86,9 @@ The installer does not replace `/bin/rm`, create an alias, or silently add
 `sudo`.
 
 The source installer builds `graceful-rm` and `graceful-rm-hook` with Go and
-installs both as static system commands. Python and Node.js are not required.
+installs both as static system commands. The remote installer requires neither
+Go nor Python; it only downloads the release binary needed for the selected
+installation mode.
 
 ## Safety rules
 

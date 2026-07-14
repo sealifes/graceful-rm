@@ -93,7 +93,7 @@ func run(args []string) int {
 		if *global {
 			cmdArgs = append(cmdArgs, "--global")
 		}
-		cmd := exec.Command("/usr/local/share/graceful-rm/scripts/install-hooks.sh", cmdArgs...)
+		cmd := hookInstallerCommand(cmdArgs...)
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		if err := cmd.Run(); err != nil {
 			if exit, ok := err.(*exec.ExitError); ok {
@@ -115,7 +115,7 @@ func run(args []string) int {
 		if *unalias {
 			return graceful.UninstallAlias()
 		}
-		cmd := exec.Command("/usr/local/share/graceful-rm/scripts/install-hooks.sh", "--uninstall", "--agent", "all")
+		cmd := hookInstallerCommand("--uninstall", "--agent", "all")
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		if err := cmd.Run(); err != nil {
 			if exit, ok := err.(*exec.ExitError); ok {
@@ -142,6 +142,13 @@ func run(args []string) int {
 		}
 	}
 	return code
+}
+
+func hookInstallerCommand(args ...string) *exec.Cmd {
+	if _, err := os.Stat("/usr/local/bin/graceful-rm-hook"); err == nil {
+		return exec.Command("/usr/local/bin/graceful-rm-hook", args...)
+	}
+	return exec.Command("/usr/local/share/graceful-rm/scripts/install-hooks.sh", args...)
 }
 
 func expandShortFlags(args []string) []string {
