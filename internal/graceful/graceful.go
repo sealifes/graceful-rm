@@ -49,16 +49,25 @@ func reject(path string) (string, string, error) {
 		}
 		return "", "", err
 	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		return "", "symbolic links are blocked; remove the link explicitly after inspection", nil
-	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return "", "", err
 	}
-	resolved, err := filepath.EvalSymlinks(abs)
-	if err != nil {
-		return "", "", err
+	resolved := abs
+	if info.Mode()&os.ModeSymlink == 0 {
+		resolved, err = filepath.EvalSymlinks(abs)
+		if err != nil {
+			return "", "", err
+		}
+	} else {
+		// Removing a symlink moves the link itself; it must never follow the
+		// link and remove its target. Resolve only the parent so a symlinked
+		// directory cannot bypass the protected-path checks.
+		parent, parentErr := filepath.EvalSymlinks(filepath.Dir(abs))
+		if parentErr != nil {
+			return "", "", parentErr
+		}
+		resolved = filepath.Join(parent, filepath.Base(abs))
 	}
 	resolved, err = filepath.Abs(resolved)
 	if err != nil {

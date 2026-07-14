@@ -93,7 +93,10 @@ installation mode.
 ## Safety rules
 
 Blocked targets include `/` itself, system trees such as `/etc`, `/usr`, and
-`/var`, symbolic links, mount points, the graceful-rm trash, and missing paths.
+`/var`, mount points, the graceful-rm trash, and missing paths. A symbolic link
+passed as the final path component is moved as a link, never followed; paths
+that pass through a symbolic-link directory are resolved before protected-path
+checks.
 User data under `/home` and ordinary project paths are allowed. Cross-filesystem
 targets are copied into the trash before their sources are removed. Review a
 command with `--dry-run` first.
